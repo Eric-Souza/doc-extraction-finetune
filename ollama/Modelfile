@@ -1,0 +1,6 @@
+# The fine-tune, from the GGUF the notebook pushes (Ollama pulls the vision projector with it).
+# Replace HF_USER, then:  ollama create doc-extraction-2b -f ollama/Modelfile
+FROM hf.co/HF_USER/qwen3.5-2b-doc-extraction-br-GGUF:Q8_0
+# An NF-e page and its reply take about 2,500 tokens; Ollama's default is 4,096
+PARAMETER num_ctx 8192
+PARAMETER temperature 0

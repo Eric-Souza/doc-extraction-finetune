@@ -1,0 +1,12 @@
+# The training set: rendered by doc-extraction-copilot, stored on the Hugging Face Hub
+data/
+# Python
+__pycache__/
+.venv/
+# Notebook run outputs
+outputs/
+wandb/
+*.gguf
+
+# Keys: HF_USER, HF_TOKEN, WANDB_API_KEY
+.env
