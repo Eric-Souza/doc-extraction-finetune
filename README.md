@@ -9,8 +9,8 @@ rendimentos into typed JSON, and scores it with the eval harness of
 
 - **Training:** QLoRA with [Unsloth](https://github.com/unslothai/unsloth) on a free Colab T4
 - **Tracking:** [Weights & Biases](https://wandb.ai): loss, eval loss and a table of held-out replies
-- **Serving:** [Ollama](https://ollama.com) pulls the GGUF and its vision projector from the Hugging Face Hub; serving the
-  merged model with [vLLM](https://docs.vllm.ai) on Colab is planned
+- **Serving:** [Ollama](https://ollama.com) pulls the GGUF and its vision projector from the Hugging Face Hub; [notebooks/serve_vllm.ipynb](notebooks/serve_vllm.ipynb)
+  serves the merged model with [vLLM](https://docs.vllm.ai) on Colab, through a Cloudflare tunnel (not run yet)
 - **Eval:** doc-extraction-copilot's 36 synthetic documents, with the same scoring and check-digit review as Gemini
 
 ## Results
@@ -70,7 +70,7 @@ cd ../doc-extraction-copilot
 AI_PROVIDER=local AI_MODEL=doc-extraction-2b npx tsx scripts/eval.ts --delay 0
 ```
 
-`scripts/make_notebook.py` writes the notebook from plain Python, so changes to it can be reviewed as code.
+`scripts/make_notebook.py` writes both notebooks from plain Python, so changes to it can be reviewed as code.
 
 ## Caveats
 

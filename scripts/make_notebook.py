@@ -1,4 +1,5 @@
-"""Writes notebooks/finetune.ipynb from the cells below, so the notebook stays reviewable as code.
+"""Writes notebooks/finetune.ipynb and notebooks/serve_vllm.ipynb from the cells below, so the notebooks stay
+reviewable as code.
 
     python scripts/make_notebook.py
 """
@@ -281,23 +282,94 @@ wandb.finish()""",
 ]
 
 
+VLLM_CELLS: list[tuple[str, str]] = [
+    (
+        "markdown",
+        """# Serve the fine-tune with vLLM on Colab
+
+The merged 16-bit model from `finetune.ipynb`, served by [vLLM](https://docs.vllm.ai) behind an OpenAI-compatible
+API on a free T4, and opened to your machine with a Cloudflare quick tunnel, so doc-extraction-copilot's eval can
+score it like the Ollama build:
+
+```bash
+AI_PROVIDER=local AI_BASE_URL=https://<tunnel>.trycloudflare.com/v1 AI_MODEL=doc-extraction-2b npx tsx scripts/eval.ts --delay 0
+```
+
+Set `HF_USER` below and run everything. Add `HF_TOKEN` as a secret if the model repo is private.""",
+    ),
+    ("code", """!pip install -qqq vllm
+!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared && chmod +x cloudflared"""),
+    (
+        "code",
+        """import os, subprocess, time, urllib.request
+
+HF_USER = "your-hf-username"  # <- yours
+MODEL = f"{HF_USER}/qwen3.5-2b-doc-extraction-br"
+
+try:
+    from google.colab import userdata
+
+    os.environ["HF_TOKEN"] = userdata.get("HF_TOKEN") or ""
+except Exception:
+    pass
+
+# The T4 has no bfloat16, so the weights load as float16. 8k tokens is what a two-page DANFE needs, as on Ollama
+server = subprocess.Popen(
+    ["vllm", "serve", MODEL, "--served-model-name", "doc-extraction-2b", "--dtype", "half",
+     "--max-model-len", "8192", "--limit-mm-per-prompt", '{"image": 4}', "--gpu-memory-utilization", "0.9"],
+    stdout=open("vllm.log", "w"), stderr=subprocess.STDOUT,
+)
+for _ in range(120):
+    try:
+        urllib.request.urlopen("http://localhost:8000/v1/models")
+        break
+    except Exception:
+        time.sleep(5)
+else:
+    raise RuntimeError(open("vllm.log").read()[-3000:])
+print("vLLM is up")""",
+    ),
+    (
+        "code",
+        """import re
+
+# A quick tunnel needs no Cloudflare account; the URL changes on each run
+tunnel = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)
+for line in tunnel.stderr:
+    if m := re.search(r"https://[a-z0-9-]+\\.trycloudflare\\.com", line):
+        print("AI_BASE_URL=" + m.group(0) + "/v1")
+        break""",
+    ),
+    (
+        "markdown",
+        """Keep this tab open while the eval runs: the server stops with the runtime. The request body from the app
+turns thinking off with `chat_template_kwargs`, which vLLM passes to the chat template.""",
+    ),
+]
+
+
 def cell(kind: str, source: str) -> dict:
     lines = source.splitlines(keepends=True)
     base = {"cell_type": kind, "metadata": {}, "source": lines}
     return base if kind == "markdown" else {**base, "execution_count": None, "outputs": []}
 
 
-notebook = {
-    "cells": [cell(k, s) for k, s in CELLS],
-    "metadata": {
-        "accelerator": "GPU",
-        "colab": {"gpuType": "T4", "provenance": []},
-        "kernelspec": {"display_name": "Python 3", "name": "python3"},
-        "language_info": {"name": "python"},
-    },
-    "nbformat": 4,
-    "nbformat_minor": 0,
-}
-out = Path(__file__).parent.parent / "notebooks" / "finetune.ipynb"
-out.write_text(json.dumps(notebook, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-print(f"Wrote {out}")
+def write(cells: list[tuple[str, str]], name: str) -> None:
+    notebook = {
+        "cells": [cell(k, s) for k, s in cells],
+        "metadata": {
+            "accelerator": "GPU",
+            "colab": {"gpuType": "T4", "provenance": []},
+            "kernelspec": {"display_name": "Python 3", "name": "python3"},
+            "language_info": {"name": "python"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 0,
+    }
+    out = Path(__file__).parent.parent / "notebooks" / name
+    out.write_text(json.dumps(notebook, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    print(f"Wrote {out}")
+
+
+write(CELLS, "finetune.ipynb")
+write(VLLM_CELLS, "serve_vllm.ipynb")
