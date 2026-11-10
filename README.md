@@ -11,7 +11,8 @@ its own 7.3% before, and every field it gets wrong is one the app flags for revi
 - **Training:** QLoRA with [Unsloth](https://github.com/unslothai/unsloth), on a free Colab T4 or locally (the run below:
   an RTX 4060 Ti 8 GB in WSL, 20 minutes, 3.2 GB of GPU memory)
 - **Tracking:** [Weights & Biases](https://wandb.ai): loss, eval loss and a table of held-out replies
-- **Serving:** [Ollama](https://ollama.com) pulls the GGUF and its vision projector from the Hugging Face Hub; [notebooks/serve_vllm.ipynb](notebooks/serve_vllm.ipynb)
+- **Serving:** [Ollama](https://ollama.com) pulls the GGUF and its vision projector from the Hugging Face Hub
+  ([eric-hugging-crazy/qwen3.5-2b-doc-extraction-br-GGUF](https://huggingface.co/eric-hugging-crazy/qwen3.5-2b-doc-extraction-br-GGUF)); [notebooks/serve_vllm.ipynb](notebooks/serve_vllm.ipynb)
   serves the merged model with [vLLM](https://docs.vllm.ai) on Colab, through a Cloudflare tunnel (not run yet)
 - **Eval:** doc-extraction-copilot's 36 synthetic documents, with the same scoring and check-digit review as Gemini
 
@@ -81,7 +82,7 @@ Open [notebooks/finetune.ipynb](notebooks/finetune.ipynb) in Colab, choose a T4 
 `WANDB_API_KEY` as secrets, set `HF_USER`, and run all. Then serve and score it:
 
 ```bash
-ollama create doc-extraction-2b -f ollama/Modelfile     # after replacing HF_USER in it
+ollama create doc-extraction-2b -f ollama/Modelfile     # the published model; your own after setting HF_USER in it
 cd ../doc-extraction-copilot
 AI_PROVIDER=local AI_MODEL=doc-extraction-2b npx tsx scripts/eval.ts --delay 0
 ```
@@ -101,7 +102,9 @@ wsl -d Ubuntu-24.04 -- bash scripts/to_gguf_wsl.sh     # the Q8_0 model and the 
 ollama create doc-extraction-2b -f ollama/Modelfile.local
 ```
 
-Then score it with the same eval command as above.
+Then score it with the same eval command as above. To publish it under the notebook's names (the GGUF repo that
+`ollama/Modelfile` pulls, and the LoRA adapter), set `HF_USER` and `HF_TOKEN` in `.env` and run
+`wsl -d Ubuntu-24.04 -- bash -c '. ~/ft/.venv/bin/activate && python scripts/upload_model.py'`.
 
 ## Caveats
 

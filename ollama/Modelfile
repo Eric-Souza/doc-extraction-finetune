@@ -1,6 +1,9 @@
-# The fine-tune, from the GGUF the notebook pushes (Ollama pulls the vision projector with it).
-# Replace HF_USER, then:  ollama create doc-extraction-2b -f ollama/Modelfile
-FROM hf.co/HF_USER/qwen3.5-2b-doc-extraction-br-GGUF:Q8_0
+# The fine-tune, from the GGUF on the Hugging Face Hub (Ollama pulls the vision projector with it):
+#   ollama create doc-extraction-2b -f ollama/Modelfile
+FROM hf.co/eric-hugging-crazy/qwen3.5-2b-doc-extraction-br-GGUF:Q8_0
+# The same chat format and reply parsing as the base qwen3.5:2b it was trained from
+RENDERER qwen3.5
+PARSER qwen3.5
 # An NF-e page and its reply take about 2,500 tokens; Ollama's default is 4,096
 PARAMETER num_ctx 8192
 PARAMETER temperature 0
