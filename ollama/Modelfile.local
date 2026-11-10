@@ -1,0 +1,10 @@
+# The fine-tune from scripts/train_local.py and scripts/to_gguf_wsl.sh, from the GGUFs next to this file:
+#   ollama create doc-extraction-2b -f ollama/Modelfile.local
+FROM ./doc-extraction-2b-q8_0.gguf
+FROM ./doc-extraction-2b-mmproj-f16.gguf
+# The same chat format and reply parsing as the base qwen3.5:2b it was trained from
+RENDERER qwen3.5
+PARSER qwen3.5
+# An NF-e page and its reply take about 2,500 tokens; Ollama's default is 4,096
+PARAMETER num_ctx 8192
+PARAMETER temperature 0

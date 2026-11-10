@@ -10,3 +10,6 @@ wandb/
 
 # Keys: HF_USER, HF_TOKEN, WANDB_API_KEY
 .env
+unsloth_compiled_cache/
+# Console output of the local run
+runs/*.log

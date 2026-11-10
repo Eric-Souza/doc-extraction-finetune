@@ -1,0 +1,10 @@
+{
+  "base_model": "unsloth/Qwen3.5-2B",
+  "steps": 145,
+  "train_minutes": 19.9,
+  "train_loss": 0.0287,
+  "peak_gpu_gb": 3.23,
+  "gpu": "NVIDIA GeForce RTX 4060 Ti",
+  "val_parsed": "72/72",
+  "val_field_match": 1.0
+}

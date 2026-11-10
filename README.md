@@ -5,9 +5,11 @@ Qwen3.5-2B, a small vision-language model, to turn a boleto, a DANFE (the printo
 rendimentos into typed JSON, and scores it with the eval harness of
 [doc-extraction-copilot](https://github.com/Eric-Souza/doc-extraction-copilot), the app it replaces Gemini in.
 
-**Status:** the training set, the notebook and the serving setup are done; the training run and its eval are next.
+**Status:** trained and scored. Fine-tuned, the 2B model reads 99.7% of the fields right, against Gemini's 99.9% and
+its own 7.3% before, and every field it gets wrong is one the app flags for review.
 
-- **Training:** QLoRA with [Unsloth](https://github.com/unslothai/unsloth) on a free Colab T4
+- **Training:** QLoRA with [Unsloth](https://github.com/unslothai/unsloth), on a free Colab T4 or locally (the run below:
+  an RTX 4060 Ti 8 GB in WSL, 20 minutes, 3.2 GB of GPU memory)
 - **Tracking:** [Weights & Biases](https://wandb.ai): loss, eval loss and a table of held-out replies
 - **Serving:** [Ollama](https://ollama.com) pulls the GGUF and its vision projector from the Hugging Face Hub; [notebooks/serve_vllm.ipynb](notebooks/serve_vllm.ipynb)
   serves the merged model with [vLLM](https://docs.vllm.ai) on Colab, through a Cloudflare tunnel (not run yet)
@@ -15,11 +17,13 @@ rendimentos into typed JSON, and scores it with the eval harness of
 
 ## Results
 
-Base model, before fine-tuning, on Ollama (Q8_0) on an RTX 4060 Ti:
+On doc-extraction-copilot's 36 eval documents (768 fields), the Qwen models on Ollama (Q8_0) on an RTX 4060 Ti:
 
 | Model | Classified | Field accuracy | Exact match | Silent errors |
 |---|---|---|---|---|
 | gemini-3.5-flash-lite (type detected) | 36/36 | 99.9% | 97.2% | 0 |
+| **Qwen3.5-2B fine-tuned, type detected** | **36/36** | **99.7%** | **94.4%** | **0** |
+| Qwen3.5-2B fine-tuned, type given | 36/36 | 99.7% | 94.4% | 0 |
 | Qwen3.5-2B base, type detected | 12/36 | 7.3% | 0.0% | 672 |
 | Qwen3.5-2B base, type given | 36/36 | 83.3% | 16.7% | 38 |
 | Qwen3.5-2B base, schema in the prompt, type detected | 28/36 | 66.3% | 8.3% | 222 |
@@ -30,6 +34,18 @@ every document a boleto, and with the type given it reads the digits well but pu
 formats. Ollama turns the JSON schema into a grammar, so the model sees the field names but not their descriptions;
 `AI_SCHEMA_IN_PROMPT=1` also writes the schema into the system prompt, the best plain prompting does here. It still
 calls 8 of the 12 informes "other", and leaves 38 wrong fields unflagged.
+
+Fine-tuned, it classifies all 36 and gets 2 fields wrong, both on DANFEs: a digit of an NF-e number and of an access
+key. The app's check-digit review flags both, so none would reach a user unnoticed, and it catches all 6 planted
+inconsistencies. A document takes 4.2 seconds (median), as before. The model and Gemini still differ in one way the
+table doesn't show: Gemini reads any layout, while the fine-tune has only seen these templates (see Caveats).
+
+One epoch over the 1,156 training chats (145 steps of 8) took 20 minutes. The loss is near zero after about 25 steps,
+and the 72 held-out chats come back as valid JSON with every field right:
+
+![Train and held-out loss](runs/loss.png)
+
+[runs/](runs) has the loss history, the run summary and the held-out replies.
 
 ## How it works
 
@@ -71,6 +87,21 @@ AI_PROVIDER=local AI_MODEL=doc-extraction-2b npx tsx scripts/eval.ts --delay 0
 ```
 
 `scripts/make_notebook.py` writes both notebooks from plain Python, so changes to it can be reviewed as code.
+
+### Locally, on an 8 GB NVIDIA GPU
+
+The same training runs in WSL (Ubuntu 24.04) with `scripts/train_local.py`, which reads `data/` instead of the Hub and
+writes the loss to `runs/` instead of W&B. The model, the GGUFs and the Ollama model stay on the machine:
+
+```bash
+wsl -d Ubuntu-24.04 -- bash scripts/setup_wsl.sh       # once: the venv in ~/ft, with Unsloth
+wsl -d Ubuntu-24.04 -- bash scripts/train_wsl.sh       # about 20 minutes; --max-steps 3 for a smoke test
+wsl -d Ubuntu-24.04 -- bash scripts/llama_cpp_wsl.sh   # once: llama.cpp's GGUF converter
+wsl -d Ubuntu-24.04 -- bash scripts/to_gguf_wsl.sh     # the Q8_0 model and the vision projector, in ollama/
+ollama create doc-extraction-2b -f ollama/Modelfile.local
+```
+
+Then score it with the same eval command as above.
 
 ## Caveats
 
